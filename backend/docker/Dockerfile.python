@@ -1,0 +1,14 @@
+# Python Executor
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy code and test cases
+COPY code.py /app/code.py
+COPY testCases.json /app/testCases.json
+
+# Install dependencies
+RUN pip install --no-cache-dir -q jsonschema
+
+# Run the code with test cases
+CMD ["python", "executor.py"]

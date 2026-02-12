@@ -1,0 +1,38 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server.js",
+  "description": "LeetCode-Style Editor Backend API with Docker-isolated Code Execution",
+  "scripts": {
+    "start": "node server.js",
+    "worker": "node worker.js",
+    "seed": "node seed.js",
+    "test": "node test.js",
+    "dev": "node server.js",
+    "docker:build": "docker build -t judge-javascript docker/Dockerfile.javascript && docker build -t judge-python docker/Dockerfile.python && docker build -t judge-cpp docker/Dockerfile.cpp && docker build -t judge-java docker/Dockerfile.java",
+    "docker:clean": "docker system prune -f"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "body-parser": "^2.2.2",
+    "bullmq": "^5.67.3",
+    "cors": "^2.8.6",
+    "dockerode": "^4.0.2",
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "ioredis": "^5.9.2",
+    "mongodb": "^7.0.0",
+    "mongoose": "^9.1.6",
+    "redis": "^5.10.0"
+  },
+  "keywords": [
+    "leetcode",
+    "coding-platform",
+    "docker-execution",
+    "code-judge",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC"
+}

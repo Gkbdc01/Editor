@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0-alpine
+    container_name: leetcode-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: leetcode-editor
+    networks:
+      - leetcode-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Job Queue
+  redis:
+    image: redis:7-alpine
+    container_name: leetcode-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - leetcode-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Server
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: leetcode-api
+    ports:
+      - "3000:3000"
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/leetcode-editor
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NODE_ENV: development
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - leetcode-network
+    command: npm start
+
+  # Judge Worker (Code Execution)
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: leetcode-worker
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NODE_ENV: development
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - leetcode-network
+    command: npm run worker
+    privileged: true
+
+volumes:
+  mongo_data:
+  redis_data:
+
+networks:
+  leetcode-network:
+    driver: bridge
