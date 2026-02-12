@@ -1,4 +1,4 @@
-# LeetCode-Style Editor
+# Contest Editor
 
 A full-stack coding practice platform with a split interface showing problems on the left and a multi-language code editor on the right.
 
