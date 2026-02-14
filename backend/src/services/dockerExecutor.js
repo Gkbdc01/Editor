@@ -1,226 +1,146 @@
-import Docker from 'dockerode';
-import { execSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import { spawn } from 'child_process';
+import tar from 'tar-stream';
+import { poolManager } from './containerPool.js';
 
-const docker = new Docker({
-  socketPath: process.platform === 'win32' ? '//./pipe/docker_engine' : '/var/run/docker.sock'
-});
-
-/**
- * Execute user code in an isolated Docker container
- * @param {string} language - Programming language (javascript, python, cpp, java)
- * @param {string} code - User code to execute
- * @param {array} testCases - Test cases array with input, expectedOutput, explanation
- * @returns {Promise<object>} - Test results object
- */
-export async function executeInDocker(language, code, testCases) {
-  const tempDir = path.join(os.tmpdir(), `judge-${Date.now()}`);
-  
-  try {
-    // Create temporary directory
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
+// ---------------------------------------------------------
+// 1. LANGUAGE CONFIGURATIONS & COMMANDS
+// ---------------------------------------------------------
+const config = {
+    javascript: {
+        filename: 'solution.js',
+        compileCmd: null,
+        runCmd: ['node', '/tmp/solution.js']
+    },
+    python: {
+        filename: 'solution.py',
+        compileCmd: null,
+        runCmd: ['python3', '/tmp/solution.py']
+    },
+    cpp: {
+        filename: 'solution.cpp',
+        // Compile to a binary named 'a.out' in the /tmp folder
+        compileCmd: ['g++', '-O2', '/tmp/solution.cpp', '-o', '/tmp/a.out'],
+        runCmd: ['/tmp/a.out']
+    },
+    java: {
+        filename: 'Main.java', // Java code MUST have a 'public class Main'
+        compileCmd: ['javac', '/tmp/Main.java'],
+        runCmd: ['java', '-cp', '/tmp', 'Main']
     }
+};
 
-    // Prepare files based on language
-    const files = prepareFiles(language, code, testCases, tempDir);
+// ---------------------------------------------------------
+// 2. MAIN EXECUTION ENGINE
+// ---------------------------------------------------------
+export const executeInDocker = async (language, code, testCases, onProgress) => {
+    const results = [];
+    const langConfig = config[language];
     
-    // Get or build Docker image
-    const imageName = `judge-${language}:latest`;
-    await ensureDockerImage(imageName, language);
+    // 1. Grab pre-warmed container
+    const { name: containerName, instance: container } = await poolManager.acquireContainer(language);
 
-    // Create and run container
-    const container = await docker.createContainer({
-      Image: imageName,
-      HostConfig: {
-        Binds: [`${tempDir}:/app`],
-        Memory: 512 * 1024 * 1024, // 512 MB limit
-        MemorySwap: 512 * 1024 * 1024,
-        CPUQuota: 50000,
-        CPUPeriod: 100000,
-        PidsLimit: 100
-      },
-      Cmd: getContainerCommand(language),
-      Timeout: 10000 // 10 second timeout
-    });
+    try {
+        // 2. Inject code securely into the /tmp RAM-disk
+        const pack = tar.pack();
+        pack.entry({ name: langConfig.filename }, code);
+        pack.finalize();
+        await container.putArchive(pack, { path: '/tmp' });
 
-    // Start container
-    await container.start();
-
-    // Wait for container to finish with timeout
-    const result = await Promise.race([
-      container.wait(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Code execution timeout')), 30000)
-      )
-    ]);
-
-    // Get container logs
-    const logs = await container.logs({
-      stdout: true,
-      stderr: true
-    });
-
-    const output = logs.toString('utf8');
-
-    // Parse results
-    const testResults = JSON.parse(output);
-
-    // Clean up container
-    await container.remove();
-
-    return testResults;
-  } catch (error) {
-    return {
-      passed: 0,
-      failed: 1,
-      totalTests: testCases.length,
-      compilationError: error.message,
-      testResults: []
-    };
-  } finally {
-    // Cleanup temporary directory
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
-  }
-}
-
-/**
- * Prepare files for Docker execution
- */
-function prepareFiles(language, code, testCases, tempDir) {
-  const files = {};
-
-  // Write test cases
-  const testCasesFile = path.join(tempDir, 'testCases.json');
-  fs.writeFileSync(testCasesFile, JSON.stringify(testCases, null, 2));
-
-  // Write code file based on language
-  if (language === 'javascript') {
-    const codeFile = path.join(tempDir, 'code.js');
-    fs.writeFileSync(codeFile, code);
-  } else if (language === 'python') {
-    const codeFile = path.join(tempDir, 'code.py');
-    fs.writeFileSync(codeFile, code);
-  } else if (language === 'cpp') {
-    const codeFile = path.join(tempDir, 'code.cpp');
-    fs.writeFileSync(codeFile, code);
-  } else if (language === 'java') {
-    const codeFile = path.join(tempDir, 'Solution.java');
-    fs.writeFileSync(codeFile, code);
-  }
-
-  return files;
-}
-
-/**
- * Get container start command based on language
- */
-function getContainerCommand(language) {
-  switch (language) {
-    case 'javascript':
-      return ['node', 'executor.js'];
-    case 'python':
-      return ['python', 'executor.py'];
-    case 'cpp':
-      return ['/app/executor'];
-    case 'java':
-      return ['java', '-cp', '/app', 'Executor'];
-    default:
-      return ['node', 'executor.js'];
-  }
-}
-
-/**
- * Ensure Docker image exists, build if necessary
- */
-async function ensureDockerImage(imageName, language) {
-  try {
-    // Try to get existing image
-    const image = docker.getImage(imageName);
-    await image.inspect();
-    console.log(`✅ Docker image ${imageName} already exists`);
-  } catch (error) {
-    // Image doesn't exist, build it
-    console.log(`🔨 Building Docker image ${imageName}...`);
-    await buildDockerImage(imageName, language);
-  }
-}
-
-/**
- * Build Docker image for a specific language
- */
-async function buildDockerImage(imageName, language) {
-  const dockerfilePath = path.join(process.cwd(), 'docker', `Dockerfile.${language}`);
-  
-  if (!fs.existsSync(dockerfilePath)) {
-    throw new Error(`Dockerfile not found: ${dockerfilePath}`);
-  }
-
-  const dockerfileContent = fs.readFileSync(dockerfilePath, 'utf8');
-  const contextPath = path.join(process.cwd(), 'docker');
-
-  return new Promise((resolve, reject) => {
-    docker.buildImage({
-      dockerfile: `Dockerfile.${language}`,
-      t: imageName
-    }, { context: contextPath }, (err, stream) => {
-      if (err) reject(err);
-
-      stream.on('data', (chunk) => {
-        const line = chunk.toString('utf8');
-        if (line.includes('Successfully built') || line.includes('error')) {
-          console.log(line);
+        // 3. ⚙️ COMPILATION PHASE (For C++ and Java)
+        if (langConfig.compileCmd) {
+            const compileResult = await runDockerCommand(containerName, langConfig.compileCmd, null, 5000);
+            
+            if (compileResult.exitCode !== 0) {
+                return [{ 
+                    passed: false, 
+                    error: `Compilation Error:\n${compileResult.error || compileResult.output}` 
+                }];
+            }
         }
-      });
 
-      stream.on('end', resolve);
-      stream.on('error', reject);
+        // 4. 🏃‍♂️ EXECUTION PHASE (Fail-Fast Test Cases)
+        for (let i = 0; i < testCases.length; i++) {
+            const currentTest = testCases[i];
+            
+            // Run the code and pipe the input via standard input
+            const executionResult = await runDockerCommand(containerName, langConfig.runCmd, currentTest.input, 2000);
+            
+            const actualOutput = executionResult.output.trim();
+            const expectedOutput = currentTest.output.trim();
+            
+            // Check for timeouts or runtime errors
+            if (executionResult.error) {
+                results.push({ testNumber: i + 1, passed: false, input: currentTest.input, expected: expectedOutput, output: actualOutput, error: executionResult.error });
+                break; // FAIL-FAST
+            }
+
+            const passed = (actualOutput === expectedOutput);
+            results.push({ testNumber: i + 1, passed, input: currentTest.input, expected: expectedOutput, output: actualOutput, error: null });
+
+            if (!passed) break; // FAIL-FAST
+
+            if (onProgress) await onProgress(((i + 1) / testCases.length) * 100);
+        }
+
+        return results;
+
+    } catch (error) {
+        throw new Error(`Execution Failed: ${error.message}`);
+    } finally {
+        // 5. GUARANTEED DEMOLITION
+        await poolManager.demolishContainer(container);
+    }
+};
+
+// ---------------------------------------------------------
+// 3. UNIVERSAL DOCKER COMMAND RUNNER (Compile & Execute)
+// ---------------------------------------------------------
+const runDockerCommand = (containerName, cmdArray, inputData = null, timeoutMs = 2000) => {
+    return new Promise((resolve) => {
+        // Build the docker exec command
+        const execArgs = ['exec', '-i', containerName, ...cmdArray];
+        const process = spawn('docker', execArgs);
+        
+        let outputData = '';
+        let errorData = '';
+
+        process.stdout.on('data', (data) => { outputData += data.toString(); });
+        process.stderr.on('data', (data) => { errorData += data.toString(); });
+
+        // Kill switch for Infinite Loops
+        const timeoutId = setTimeout(() => {
+            process.kill();
+            resolve({ output: '', error: 'Time Limit Exceeded', exitCode: 124 });
+        }, timeoutMs);
+
+        process.on('close', (code) => {
+            clearTimeout(timeoutId);
+            resolve({ output: outputData, error: errorData, exitCode: code });
+        });
+
+        // If we have input data (test cases), pipe it to stdin
+        if (inputData !== null) {
+            process.stdin.write(inputData + '\n');
+            process.stdin.end();
+        }
     });
-  });
-}
+};
 
-/**
- * Compare test results and generate summary
- */
-export function generateResultsSummary(testResults) {
-  const { passed, failed, totalTests, testResults: results } = testResults;
+export const generateResultsSummary = (results) => {
+    // If it failed at compilation, results array only has 1 item with an error
+    if (results.length === 1 && results[0].error && results[0].error.includes('Compilation Error')) {
+        return { status: 'compilation_error', passed: 0, failed: 1, totalTests: 0, percentage: "0.00", details: results };
+    }
 
-  const summary = {
-    status: failed === 0 ? 'accepted' : 'rejected',
-    passed,
-    failed,
-    totalTests,
-    percentage: ((passed / totalTests) * 100).toFixed(2),
-    details: results.map(r => ({
-      status: r.passed ? 'PASS' : 'FAIL',
-      input: r.input,
-      expected: r.expectedOutput,
-      actual: r.actualOutput,
-      error: r.error || null
-    }))
-  };
-
-  return summary;
-}
-
-/**
- * Cleanup all judge-* Docker images (optional)
- */
-export async function cleanupDockerImages() {
-  const images = await docker.listImages();
-  const judgeImages = images.filter(img => 
-    img.RepoTags && img.RepoTags.some(tag => tag.startsWith('judge-'))
-  );
-
-  for (const img of judgeImages) {
-    const image = docker.getImage(img.Id);
-    console.log(`🗑️ Removing image: ${img.RepoTags[0]}`);
-    await image.remove();
-  }
-}
-
-export { docker };
+    const passedTests = results.filter(r => r.passed).length;
+    const totalTestsRun = results.length;
+    
+    return {
+        status: passedTests === totalTestsRun && totalTestsRun > 0 ? 'accepted' : 'rejected',
+        passed: passedTests,
+        failed: totalTestsRun - passedTests,
+        totalTests: totalTestsRun, 
+        percentage: totalTestsRun > 0 ? ((passedTests / totalTestsRun) * 100).toFixed(2) : "0.00",
+        details: results
+    };
+};

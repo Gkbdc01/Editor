@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Worker to process code submissions using Docker containers
 const worker = new Worker(
   'judge-queue',
   async (job) => {
@@ -16,47 +15,52 @@ const worker = new Worker(
     console.log(`📋 Test cases: ${testCases.length}`);
 
     try {
-      // Validate language
+      // 1. Validate language
       const supportedLanguages = ['javascript', 'python', 'cpp', 'java'];
       if (!supportedLanguages.includes(language)) {
-        throw new Error(`Unsupported language: ${language}. Supported: ${supportedLanguages.join(', ')}`);
+        throw new Error(`Unsupported language: ${language}`);
       }
 
-      // Execute code in isolated Docker container
-      const testResults = await executeInDocker(language, code, testCases);
+      // 2. Execute code with Real-Time Progress Updates
+      // We pass a callback to update the progress in Redis while the tests run
+      const testResults = await executeInDocker(
+        language, 
+        code, 
+        testCases, 
+        async (progress) => {
+           await job.updateProgress(Math.floor(progress));
+        }
+      );
 
-      // Generate summary
+      // 3. Generate structured summary
       const summary = generateResultsSummary(testResults);
 
-      console.log(`✅ Job ${job.id} completed`);
-      console.log(`   Passed: ${summary.passed}/${summary.totalTests} (${summary.percentage}%)`);
+      console.log(`✅ Job ${job.id} completed: ${summary.status}`);
 
+      // 4. Return a clean, structured object
       return {
-        ...testResults,
-        summary
+        success: true,
+        testResults, // Array of each test case result
+        summary      // The status (accepted/rejected) and stats
       };
+
     } catch (error) {
       console.error(`❌ Job ${job.id} failed:`, error.message);
       
+      // Return a consistent error structure for the frontend
       return {
+        success: false,
+        status: 'error',
+        error: error.message,
         passed: 0,
-        failed: testCases.length,
-        totalTests: testCases.length,
-        compilationError: error.message,
-        testResults: [],
-        summary: {
-          status: 'error',
-          passed: 0,
-          failed: testCases.length,
-          totalTests: testCases.length,
-          percentage: '0.00',
-          details: []
-        }
+        totalTests: testCases?.length || 0,
       };
     }
   },
   { 
     connection,
+    // 🛡️ THE SHIELD: Limits how many Docker containers can run at once
+    concurrency: 5, 
     settings: {
       retryProcessDelay: 5000,
       lockDuration: 30000,
@@ -65,24 +69,21 @@ const worker = new Worker(
   }
 );
 
-// Event handlers
+// --- Event Handlers ---
 worker.on('completed', (job) => {
-  console.log(`\n✅ Job ${job.id} completed successfully\n`);
+  console.log(`\n✅ Job ${job.id} state: COMPLETED\n`);
 });
 
 worker.on('failed', (job, err) => {
-  console.error(`\n❌ Job ${job.id} failed: ${err.message}\n`);
+  console.error(`\n❌ Job ${job.id} state: FAILED - ${err.message}\n`);
 });
 
-worker.on('error', (err) => {
-  console.error('Worker error:', err);
-});
-
+// Cleanly close the worker on server shutdown
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down worker...');
+  console.log('\n🛑 Shutting down worker gracefully...');
   await worker.close();
   process.exit(0);
 });
 
 console.log('\n🚀 Docker-based Judge Worker Started');
-console.log('⏳ Listening for jobs on judge-queue...\n');
+console.log('⏳ Listening for jobs on judge-queue (Max 5 parallel)...\n');

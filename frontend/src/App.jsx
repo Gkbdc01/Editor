@@ -3,249 +3,98 @@ import Editor from './Components/Editor';
 import QuestionPanel from './Components/QuestionPanel';
 import './App.css';
 
-// FIX 1: Use a safe default if env is missing (prevent undefined errors)
-// Note: If using Vite, use import.meta.env.VITE_BACKEND_URL
-// If using Create React App, use process.env.REACT_APP_BACKEND_URL
-const API_BACKEND_URL = import.meta.env.backend_url || 'http://localhost:3001'; 
-
-const DEFAULT_QUESTIONS = [
-  {
-    id: 1,
-    title: 'Two Sum',
-    difficulty: 'Easy',
-    description: 'Given an array of integers nums and an integer target, return the indices of the two numbers that add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.',
-    examples: [
-      {
-        input: 'nums = [2,7,11,15], target = 9',
-        output: '[0,1]',
-        explanation: 'Because nums[0] + nums[1] == 9, we return [0, 1].',
-      },
-      {
-        input: 'nums = [3,2,4], target = 6',
-        output: '[1,2]',
-        explanation: 'Because nums[1] + nums[2] == 6, we return [1, 2].',
-      },
-    ],
-    constraints: '2 <= nums.length <= 104\n-109 <= nums[i] <= 109\n-109 <= target <= 109\nOnly one valid answer exists.',
-    boilerplate: {
-      javascript: `function twoSum(nums, target) {
-  // Write your code here
-  
-}`,
-      python: `def twoSum(nums, target):
-    # Write your code here
-    pass`,
-      cpp: `vector<int> twoSum(vector<int>& nums, int target) {
-    // Write your code here
-    
-}`,
-      java: `class Solution {
-    public int[] twoSum(int[] nums, int target) {
-        // Write your code here
-        return new int[]{};
-    }
-}`,
-    },
-    testCases: [
-      { input: '[2,7,11,15], 9', output: '[0,1]', explanation: 'Simple case' },
-      { input: '[3,2,4], 6', output: '[1,2]', explanation: 'Different indices' },
-      { input: '[3,3], 6', output: '[0,1]', explanation: 'Duplicate values' },
-    ],
-  },
-  {
-    id: 2,
-    title: 'Palindrome String',
-    difficulty: 'Easy',
-    description: 'Given a string s, determine if it is a palindrome, considering only alphanumeric characters and ignoring cases.',
-    examples: [
-      {
-        input: 's = "A man, a plan, a canal: Panama"',
-        output: 'true',
-        explanation: 'After removing non-alphanumeric characters: "amanaplanacanalpanama" which is a palindrome.',
-      },
-      {
-        input: 's = "race a car"',
-        output: 'false',
-        explanation: '"raceacar" is not a palindrome.',
-      },
-    ],
-    constraints: '1 <= s.length <= 2 * 10^5\ns consists of printable ASCII characters.',
-    boilerplate: {
-      javascript: `function isPalindrome(s) {
-  // Write your code here
-  
-}`,
-      python: `def isPalindrome(s: str) -> bool:
-    # Write your code here
-    pass`,
-      cpp: `bool isPalindrome(string s) {
-    // Write your code here
-    return false;
-}`,
-      java: `class Solution {
-    public boolean isPalindrome(String s) {
-        // Write your code here
-        return false;
-    }
-}`,
-    },
-    testCases: [
-      { input: '"A man, a plan, a canal: Panama"', output: 'true', explanation: 'Valid palindrome' },
-      { input: '"race a car"', output: 'false', explanation: 'Not a palindrome' },
-      { input: '""', output: 'true', explanation: 'Empty string' },
-    ],
-  },
-  {
-    id: 3,
-    title: 'Valid Parentheses',
-    difficulty: 'Easy',
-    description: 'Given a string s containing just the characters "(", ")", "{", "}", "[" and "]", determine if the input string is valid. An input string is valid if: 1) Open brackets must be closed by the same type of closing bracket. 2) Open brackets must be closed in the correct order.',
-    examples: [
-      {
-        input: 's = "()"',
-        output: 'true',
-        explanation: 'Simple valid case.',
-      },
-      {
-        input: 's = "()[]{}"',
-        output: 'true',
-        explanation: 'All brackets are valid.',
-      },
-      {
-        input: 's = "(]"',
-        output: 'false',
-        explanation: 'Wrong closing bracket.',
-      },
-    ],
-    constraints: '1 <= s.length <= 10^4\ns[i] is a bracket character only.',
-    boilerplate: {
-      javascript: `function isValid(s) {
-  // Write your code here
-  
-}`,
-      python: `def isValid(s: str) -> bool:
-    # Write your code here
-    pass`,
-      cpp: `bool isValid(string s) {
-    // Write your code here
-    return false;
-}`,
-      java: `class Solution {
-    public boolean isValid(String s) {
-        // Write your code here
-        return false;
-    }
-}`,
-    },
-    testCases: [
-      { input: '"()"', output: 'true', explanation: 'Simple case' },
-      { input: '"()[]{}"', output: 'true', explanation: 'Multiple types' },
-      { input: '"(]"', output: 'false', explanation: 'Mismatch' },
-      { input: '""', output: 'true', explanation: 'Empty string' },
-    ],
-  },
-  {
-    id: 4,
-    title: 'Reverse String',
-    difficulty: 'Easy',
-    description: 'Write a function that reverses a string. The input string is given as an array of characters `s`. You must do this by modifying the input array in-place with O(1) extra memory.',
-    examples: [
-      {
-        input: 's = ["h","e","l","l","o"]',
-        output: '["o","l","l","e","h"]',
-        explanation: 'Characters are reversed in place.',
-      },
-    ],
-    constraints: '1 <= s.length <= 10^5\ns[i] is a printable ascii character.',
-    boilerplate: {
-      javascript: `function reverseString(s) {
-  // Write your code here
-  
-}`,
-      python: `def reverseString(s: List[str]) -> None:
-    # Write your code here
-    pass`,
-      cpp: `void reverseString(vector<char>& s) {
-    // Write your code here
-}`,
-      java: `class Solution {
-    public void reverseString(char[] s) {
-        // Write your code here
-    }
-}`,
-    },
-    testCases: [
-      { input: '["h","e","l","l","o"]', output: '["o","l","l","e","h"]', explanation: 'Simple reverse' },
-      { input: '["H","a","n","n","a","h"]', output: '["h","a","n","n","a","H"]', explanation: 'Palindrome string' },
-    ],
-  },
-  {
-    id: 5,
-    title: 'Longest Substring Without Repeating Characters',
-    difficulty: 'Medium',
-    description: 'Given a string s, find the length of the longest substring without repeating characters.',
-    examples: [
-      {
-        input: 's = "abcabcbb"',
-        output: '3',
-        explanation: 'The answer is "abc", with the length of 3.',
-      },
-    ],
-    constraints: '0 <= s.length <= 5 * 10^4\ns consists of English letters, digits, symbols and spaces.',
-    boilerplate: {
-      javascript: `function lengthOfLongestSubstring(s) {
-  // Write your code here
-  return 0;
-}`,
-      python: `def lengthOfLongestSubstring(s: str) -> int:
-    # Write your code here
-    return 0`,
-      cpp: `int lengthOfLongestSubstring(string s) {
-    // Write your code here
-    return 0;
-}`,
-      java: `class Solution {
-    public int lengthOfLongestSubstring(String s) {
-        // Write your code here
-        return 0;
-    }
-}`,
-    },
-    testCases: [
-      { input: '"abcabcbb"', output: '3', explanation: 'Longest substring is "abc"' },
-      { input: '"bbbbb"', output: '1', explanation: 'Only "b"' },
-      { input: '"pwwkew"', output: '3', explanation: 'Longest is "wke"' },
-    ],
-  },
-];
+// Using VITE_BACKEND_URL for Vite, fallback to localhost
+const API_BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'; 
 
 export default function App() {
-  const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
+  const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
+  
+  // 1. ADDED: A loading state to track the API call
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleRunCode = (code) => {
+  // frontend/src/App.js
+
+const handleRunCode = async (code) => {
     setIsRunning(true);
-    if (selectedLanguage !== 'javascript') {
-      setOutput('Execution is only supported for JavaScript in this demo environment.');
-      setIsRunning(false);
-      return;
-    }
+    setOutput('Submitting code to server...');
 
     try {
-      // eslint-disable-next-line no-eval
-      const result = eval(`(${code})`);
-      if (typeof result === 'function') {
-        setOutput(`Code syntax is valid.\nFunction loaded: ${result.name}`);
-      } else {
-        setOutput(`Code executed successfully: ${result}`);
-      }
+        // 1. Send code to the queue
+        const submitRes = await fetch(`${API_BACKEND_URL}/api/submissions/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                questionId: currentQuestionData.id,
+                language: selectedLanguage,
+                code: code
+            })
+        });
+
+        const submitData = await submitRes.json();
+
+        if (!submitRes.ok) throw new Error(submitData.error);
+
+        const jobId = submitData.jobId;
+        setOutput(`Job ${jobId} added to queue. Waiting for execution...`);
+
+        // 2. Start Polling for the result
+        pollJobStatus(jobId);
+
     } catch (error) {
-      setOutput(`Error: ${error.message}`);
+        setIsRunning(false);
+        setOutput(`Submission Error: ${error.message}`);
     }
-    setIsRunning(false);
+};
+
+// --- THE POLLING FUNCTION ---
+const pollJobStatus = async (jobId) => {
+      try {
+          // Adjust this URL to match your actual backend URL/port
+          const response = await fetch(`http://localhost:3000/api/submissions/status/${jobId}`);
+          const data = await response.json();
+
+          // Catch 404s (Job expired/not found) or 500s
+          if (!response.ok) {
+              throw new Error(data.error || "Failed to fetch job status");
+          }
+
+          // 1. MATCHING YOUR 'completed' STATUS
+          if (data.status === 'completed') {
+              setIsRunning(false);
+              
+              // If your worker returns a JSON object, we stringify it for the output window
+              const formattedResult = typeof data.result === 'object' 
+                  ? JSON.stringify(data.result, null, 2) 
+                  : data.result;
+                  
+              setOutput(`Execution Completed! ✅\n\n${formattedResult}`);
+          } 
+          
+          // 2. MATCHING YOUR 'failed' STATUS
+          else if (data.status === 'failed') {
+              setIsRunning(false);
+              setOutput(`Execution Failed ❌:\n\n${data.error}`);
+          } 
+          
+          // 3. MATCHING YOUR 'waiting' OR 'active' STATUS
+          else {
+              // You included progress tracking! Let's display it if it exists.
+              const progressText = data.progress ? ` (${data.progress}%)` : '';
+              
+              setOutput(`Status: ${data.status.toUpperCase()}${progressText}...`);
+              
+              // It's not done yet, so ask again in 1 second
+              setTimeout(() => pollJobStatus(jobId), 1000);
+          }
+
+      } catch (error) {
+          setIsRunning(false);
+          setOutput(`Polling Error: ${error.message}`);
+      }
   };
 
   const handleNextQuestion = () => {
@@ -265,26 +114,42 @@ export default function App() {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        // FIX 2: Use Template Literals (backticks) and the corrected constant
-        const response = await fetch(`${API_BACKEND_URL}/api/questions`);
+        // 2. FIXED: Actually use the API_BACKEND_URL constant via template literals
+        const response = await fetch(`${API_BACKEND_URL}/api/submissions/questions`);
+        console.log('Fetching questions from:', `${API_BACKEND_URL}/api/submissions/questions`);
         
         if (!response.ok) {
            throw new Error('API not available');
         }
+        
         const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setQuestions(data);
+        
+        // 3. ENHANCED: Specifically check for data.questions based on your JSON structure
+        if (data.success && Array.isArray(data.questions) && data.questions.length > 0) {
+          setQuestions(data.questions);
         }
       } catch (error) {
-        // This is normal if you haven't built the backend yet
-        console.warn('Using default questions (API unavailable).');
+        console.warn('Using default questions (API unavailable).', error);
+      } finally {
+        // 4. ADDED: Set loading to false once the fetch completes (success or fail)
+        setIsLoading(false);
       }
     };
 
     fetchQuestions();
   }, []);
 
-  const currentQuestionData = questions[currentQuestionIndex] || DEFAULT_QUESTIONS[0];
+  // 5. ADDED: Early returns to handle loading and empty states securely
+  if (isLoading) {
+    return <div className="app-container"><h2>Loading questions...</h2></div>;
+  }
+
+  if (questions.length === 0) {
+    return <div className="app-container"><h2>No questions found. Please check your Internet connection.</h2></div>;
+  }
+
+  // Now it is safe to assign this, because we know the array isn't empty
+  const currentQuestionData = questions[currentQuestionIndex];
 
   return (
     <div className="app-container">

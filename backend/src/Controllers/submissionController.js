@@ -29,15 +29,18 @@ export const getQuestion = async (req, res) => {
 
 // 3. Submit Code
 export const submitJob = async (req, res) => {
-    const { code, language, problemId } = req.body;
+    // FIX: Extract 'questionId' instead of 'problemId'
+    console.log("Received submission request with body:", req.body);
+    const { questionId, language, code } = req.body;
 
-    if (!code || !problemId) {
-        return res.status(400).json({ success: false, error: "Code and problemId are required!" });
+    if (!code || !questionId) {
+        return res.status(400).json({ success: false, error: "Code and questionId are required!" });
     }
 
     try {
-        // Validate problem exists
-        const question = await Question.findOne({ id: problemId });
+        // Use questionId to find the problem in the database
+        const question = await Question.findOne({ id: questionId });
+        
         if (!question) {
             return res.status(404).json({ success: false, error: "Problem not found" });
         }
@@ -46,7 +49,7 @@ export const submitJob = async (req, res) => {
         const job = await submissionQueue.add("eval-submission", { 
             code, 
             language, 
-            problemId,
+            problemId: questionId, // Passing it as problemId to the queue worker
             testCases: question.testCases
         }, {
             removeOnComplete: true,
@@ -71,7 +74,7 @@ export const getJobStatus = async (req, res) => {
         }
 
         const state = await job.getState();
-        const progress = job.progress();
+        const progress = job.progress;
         const result = job.returnvalue;
         const failReason = job.failedReason;
 
