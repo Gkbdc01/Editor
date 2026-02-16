@@ -51,9 +51,10 @@ export const submitJob = async (req, res) => {
             language, 
             problemId: questionId, // Passing it as problemId to the queue worker
             testCases: question.testCases
+            driver : question.driver
         }, {
-            removeOnComplete: true,
-            removeOnFail: 3600 // Keep failed jobs for 1 hour
+            removeOnComplete: {age:170},
+            removeOnFail: {age:300} // Keep failed jobs for 1 hour
         });
 
         res.status(201).json({ success: true, jobId: job.id });

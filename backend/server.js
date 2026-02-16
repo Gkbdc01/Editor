@@ -26,15 +26,7 @@ app.get('/api/health', (req, res) => {
 
 // Root endpoint
 app.get('/', (req, res) => {
-    res.json({ 
-        message: 'LeetCode Editor API', 
-        version: '1.0.0',
-        endpoints: {
-            health: '/api/health',
-            questions: '/api/submissions/questions',
-            submit: '/api/submissions/submit'
-        }
-    });
+    res.send("server is live");
 });
 
 // Error handling middleware

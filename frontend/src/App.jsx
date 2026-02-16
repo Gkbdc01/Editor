@@ -4,7 +4,7 @@ import QuestionPanel from './Components/QuestionPanel';
 import './App.css';
 
 // Using VITE_BACKEND_URL for Vite, fallback to localhost
-const API_BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'; 
+const API_BACKEND_URL = 'http://20.193.153.20:3000' || 'http://localhost:3000'; 
 
 export default function App() {
   const [questions, setQuestions] = useState([]);
@@ -12,6 +12,7 @@ export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
+  const [result,setresult] = useState({});;
   
   // 1. ADDED: A loading state to track the API call
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +29,7 @@ const handleRunCode = async (code) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                questionId: currentQuestionData.id,
+                questionId: currentQuestionData._id,
                 language: selectedLanguage,
                 code: code
             })
@@ -54,7 +55,7 @@ const handleRunCode = async (code) => {
 const pollJobStatus = async (jobId) => {
       try {
           // Adjust this URL to match your actual backend URL/port
-          const response = await fetch(`http://localhost:3000/api/submissions/status/${jobId}`);
+          const response = await fetch(`${API_BACKEND_URL}/api/submissions/status/${jobId}`);
           const data = await response.json();
 
           // Catch 404s (Job expired/not found) or 500s
@@ -65,7 +66,7 @@ const pollJobStatus = async (jobId) => {
           // 1. MATCHING YOUR 'completed' STATUS
           if (data.status === 'completed') {
               setIsRunning(false);
-              
+              setresult(data.result);
               // If your worker returns a JSON object, we stringify it for the output window
               const formattedResult = typeof data.result === 'object' 
                   ? JSON.stringify(data.result, null, 2) 
@@ -88,7 +89,7 @@ const pollJobStatus = async (jobId) => {
               setOutput(`Status: ${data.status.toUpperCase()}${progressText}...`);
               
               // It's not done yet, so ask again in 1 second
-              setTimeout(() => pollJobStatus(jobId), 1000);
+              setTimeout(() => pollJobStatus(jobId), 200);
           }
 
       } catch (error) {
@@ -172,6 +173,7 @@ const pollJobStatus = async (jobId) => {
             onRun={handleRunCode}
             isRunning={isRunning}
             output={output}
+            results={result}
           />
         </div>
       </div>

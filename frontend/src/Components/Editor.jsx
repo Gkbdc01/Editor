@@ -10,7 +10,7 @@ const LANGUAGE_MAP = {
   java: { name: 'Java', monaco: 'java' },
 };
 
-export default function CodeEditor({ question, selectedLanguage, onLanguageChange, onRun, isRunning, output }) {
+export default function CodeEditor({ question, selectedLanguage, onLanguageChange, onRun, isRunning, output , result}) {
   const [code, setCode] = useState('');
   const [editorHeight, setEditorHeight] = useState(50);
   const [isResizing, setIsResizing] = useState(false);
@@ -168,19 +168,9 @@ export default function CodeEditor({ question, selectedLanguage, onLanguageChang
             testCases={question?.testCases || []}
             hasError={hasError}
             totalTests={question?.testCases?.length || 0}
-            passedTests={0}
+            passedTests={result?.summary?.passed || 0}
+            result={result}
           />
-        </div>
-      )}
-
-      {hasError && (
-        <div className="error-panel" style={{ height: `${100 - editorHeight}%` }}>
-          <div className="error-header">
-            <h3>⚠️ Execution Error</h3>
-          </div>
-          <div className="error-content">
-            {output}
-          </div>
         </div>
       )}
     </div>

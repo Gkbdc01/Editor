@@ -36,11 +36,43 @@ const questionSchema = new mongoose.Schema(
       cpp: String,
       java: String,
     },
+    
+    // 🌟 THE NEW METADATA ENGINE 🌟
+    metaData: {
+      className: {
+        type: String,
+        required: true, // e.g., 'Solution'
+      },
+      methodName: {
+        type: String,
+        required: true, // e.g., 'twoSum'
+      },
+      params: [
+        {
+          name: String, // e.g., 'nums'
+          type: { type: String, required: true } // Workaround because 'type' is a reserved Mongoose keyword
+        }
+      ],
+      returnType: {
+        type: String, // e.g., 'int[]'
+        required: true,
+      }
+    },
+
     testCases: [
       {
-        input: String,
-        output: String,
-        explanation: String,
+        input: {
+          type: String,
+          required: true // Added required since execution breaks without input
+        },
+        output: {
+          type: String,
+          required: true // Added required since execution breaks without output
+        },
+        explanation: {
+          type: String,
+          required: false
+        },
       },
     ],
   },
