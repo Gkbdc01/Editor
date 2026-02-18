@@ -35,6 +35,14 @@ export default function CodeEditor({ question, selectedLanguage, onLanguageChang
     }
   }, [output]);
 
+    useEffect(() => {
+    if (result && result.success === false && !result.testResults) {
+      setHasError(true);
+    } else {
+      setHasError(false);
+    }
+  }, [result, output]);
+
   const handleEditorMount = (editor) => {
     editorRef.current = editor;
   };

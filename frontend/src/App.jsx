@@ -173,7 +173,7 @@ const pollJobStatus = async (jobId) => {
             onRun={handleRunCode}
             isRunning={isRunning}
             output={output}
-            results={result}
+            result={result}
           />
         </div>
       </div>
